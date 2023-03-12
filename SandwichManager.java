@@ -34,11 +34,11 @@ public class SandwichManager {
         // Create the log header
         String systemLineSeparator = System.lineSeparator();
         String logHead = String.format(
-                "sandwiches: %d%sbread capacity: %d%segg capacity: %d%sbread makers: %d%segg makers: %d%sandwich packers: %d%sbread rate: %d%segg rate: %d%spacking rate%d%s",
+                "sandwiches: %d%sbread capacity: %d%segg capacity: %d%sbread makers: %d%segg makers: %d%ssandwich packers: %d%sbread rate: %d%segg rate: %d%spacking rate: %d%s%s",
                 numSandwiches, systemLineSeparator, breadCapacity, systemLineSeparator, eggCapacity,
                 systemLineSeparator, numBreadMakers, systemLineSeparator, numEggMakers, systemLineSeparator,
                 numSandwichPackers, systemLineSeparator, breadRate, systemLineSeparator, eggRate, systemLineSeparator,
-                packingRate, systemLineSeparator);
+                packingRate, systemLineSeparator, systemLineSeparator);
         writeToLog(logHead, false);
 
         // We first want to set the total number of required ingredients
@@ -91,14 +91,6 @@ public class SandwichManager {
                 e.printStackTrace();
             }
         }
-
-        // Print out completion status with the number of sandwiches made and buffer
-        // status
-        // System.out.println("------------------------------\nJob status: " +
-        // (requiredSandwich == 0 ? "SUCCESS" : "FAILURE") );
-        // System.out.println("Sandwiches made: " + (numSandwiches - requiredSandwich));
-        // System.out.println("Bread buffer: " + breadBufferItemCount);
-        // System.out.println("Egg buffer: " + eggBufferItemCount);
 
         // Create the log summary
         StringBuilder summary = new StringBuilder();
@@ -164,149 +156,180 @@ public class SandwichManager {
     }
 }
 
-class Bread {
-    int id;
-    String machineId;
-
-    public Bread(int id, String name) {
-        this.id = id;
-        this.machineId = name;
-    }
-
-    @Override
-    public String toString() {
-        return "bread " + id + " from " + machineId;
-    }
-}
-
-class BreadMachine extends Thread {
+class GenericMachine extends Thread {
     private String machineId;
     private int rate;
     private int numMade = 0;
 
-    public BreadMachine(int id, int rate) {
-        this.machineId = "B" + id;
+    public GenericMachine(String prefix, int id, int rate) {
+        this.machineId = prefix + id;
         this.rate = rate;
+    }
+
+    public String getMachineId() {
+        return machineId;
+    }
+
+    public void setMachineId(String machineId) {
+        this.machineId = machineId;
+    }
+
+    public int getRate() {
+        return rate;
+    }
+
+    public void setRate(int rate) {
+        this.rate = rate;
+    }
+
+    public synchronized int getNumMade() {
+        return numMade;
+    }
+
+    public synchronized void setNumMade(int numMade) {
+        this.numMade = numMade;
+    }
+
+    public String getAmountMade() {
+        return machineId + " makes " + numMade;
+    }
+}
+
+class GenericIngredient {
+    private String machineId;
+    private String name;
+    private int id;
+
+    public GenericIngredient(int id, String machineId, String name) {
+        this.id = id;
+        this.machineId = machineId;
+        this.name = name;
+    }
+
+    public String getMachineId() {
+        return machineId;
+    }
+
+    public void setMachineId(String machineId) {
+        this.machineId = machineId;
+    }
+
+    public int getId() {
+        return id;
+    }
+
+    public void setId(int id) {
+        this.id = id;
+    }
+
+    @Override
+    public String toString() {
+        return name + " " + id + " from " + machineId;
+    }
+}
+
+class Bread extends GenericIngredient {
+    public Bread(int id, String machineId) {
+        super(id, machineId, "bread");
+    }
+}
+
+class BreadMachine extends GenericMachine {
+
+    public BreadMachine(int id, int rate) {
+        super("B", id, rate);
     }
 
     @Override
     public void run() {
         while (SandwichManager.canMakeBread()) {
-            SandwichManager.gowork(rate); // Making bread...
-            // Put made bread into the buffer
-            String log = String.format("%s puts bread %d%s", machineId, numMade,
-                    System.lineSeparator());
-            SandwichManager.writeToLog(log, true);
+            // Make bread
+            SandwichManager.gowork(getRate());
             try {
-                SandwichManager.breadBuffer.put(new Bread(numMade++, machineId));
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
-    }
-
-    public String getAmountMade() {
-        return machineId + " makes " + numMade;
-    }
-}
-
-class Egg {
-    int id;
-    String machineId;
-
-    public Egg(int id, String name) {
-        this.id = id;
-        this.machineId = name;
-    }
-
-    @Override
-    public String toString() {
-        return "egg " + id + " from " + machineId;
-    }
-}
-
-class EggMachine extends Thread {
-    private String machineId;
-    private int rate;
-    private int numMade = 0;
-
-    public EggMachine(int id, int rate) {
-        this.machineId = "E" + id;
-        this.rate = rate;
-    }
-
-    @Override
-    public void run() {
-        while (SandwichManager.canMakeEgg()) {
-            SandwichManager.gowork(rate); // Making bread...
-            // Put made bread into the buffer
-            String log = String.format("%s puts egg %d%s", machineId, numMade,
-                    System.lineSeparator());
-            SandwichManager.writeToLog(log, true);
-            try {
-                SandwichManager.eggBuffer.put(new Egg(numMade++, machineId));
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
-    }
-
-    public String getAmountMade() {
-        return machineId + " makes " + numMade;
-    }
-}
-
-class SandwichMachine extends Thread {
-    private String machineId;
-    private int rate;
-    private int numMade = 0;
-
-    public SandwichMachine(int id, int rate) {
-        this.machineId = "S" + id;
-        this.rate = rate;
-    }
-
-    @Override
-    public void run() {
-        while (SandwichManager.canMakeSandwich()) {
-            try {
-                // Get ingredients from the buffer [DEADLOCK PREVENTION]
-                Bread top, bottom;
-                Egg egg;
-                // NOTE: synchronized block is used to ensure that the three get operations are
-                // atomic to prevent deadlock on ingredient allocation
-                // synchronized (SandwichManager.allocatorMonitor) {
-                // top = SandwichManager.getBread();
-                // egg = SandwichManager.getEgg();
-                // bottom = SandwichManager.getBread();
-                // }
-                top = SandwichManager.breadBuffer.get();
-                bottom = SandwichManager.breadBuffer.get();
-                egg = SandwichManager.eggBuffer.get();
-
-                SandwichManager.gowork(rate); // Packing sandwich...
-                // Write to log
-                String log = String.format(
-                        "%s packs sandwich %d with bread %d from %s and egg %d from %s and bread %d from %s%s",
-                        machineId,
-                        numMade++,
-                        top.id,
-                        top.machineId,
-                        egg.id,
-                        egg.machineId,
-                        bottom.id,
-                        bottom.machineId,
+                // Put made bread into the buffer
+                int numMade = getNumMade();
+                SandwichManager.breadBuffer.put(new Bread(numMade++, getMachineId()));
+                setNumMade(numMade);
+                String log = String.format("%s puts bread %d%s", getMachineId(), numMade,
                         System.lineSeparator());
                 SandwichManager.writeToLog(log, true);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
         }
+    }
+}
 
+class Egg extends GenericIngredient {
+    public Egg(int id, String machineId) {
+        super(id, machineId, "egg");
+    }
+}
+
+class EggMachine extends GenericMachine {
+
+    public EggMachine(int id, int rate) {
+        super("E", id, rate);
     }
 
-    public String getAmountMade() {
-        return machineId + " makes " + numMade;
+    @Override
+    public void run() {
+        while (SandwichManager.canMakeEgg()) {
+            // Making egg
+            SandwichManager.gowork(getRate());
+            try {
+                // Put made egg into the buffer
+                int numMade = getNumMade();
+                SandwichManager.eggBuffer.put(new Egg(numMade++, getMachineId()));
+                setNumMade(numMade);
+                String log = String.format("%s puts egg %d%s", getMachineId(), numMade,
+                        System.lineSeparator());
+                SandwichManager.writeToLog(log, true);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+}
+
+class SandwichMachine extends GenericMachine {
+
+    public SandwichMachine(int id, int rate) {
+        super("S", id, rate);
+    }
+
+    @Override
+    public void run() {
+        while (SandwichManager.canMakeSandwich()) {
+            try {
+                // Get ingredients from the bread and egg buffers
+                Bread top, bottom;
+                Egg egg;
+                top = SandwichManager.breadBuffer.get();
+                bottom = SandwichManager.breadBuffer.get();
+                egg = SandwichManager.eggBuffer.get();
+
+                // Pack sandwich
+                SandwichManager.gowork(getRate());
+                int numMade = getNumMade();
+                String log = String.format(
+                        "%s packs sandwich %d with bread %d from %s and egg %d from %s and bread %d from %s%s",
+                        getMachineId(),
+                        numMade++,
+                        top.getId(),
+                        top.getMachineId(),
+                        egg.getId(),
+                        egg.getMachineId(),
+                        bottom.getId(),
+                        bottom.getMachineId(),
+                        System.lineSeparator());
+                SandwichManager.writeToLog(log, true);
+                setNumMade(numMade);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+
     }
 }
 
