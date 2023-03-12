@@ -1,4 +1,4 @@
-import java.io.File;
+import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
 
@@ -19,6 +19,7 @@ public class SandwichManager {
     static int requiredBread = 0, requiredEgg = 0, requiredSandwich = 0;
     static CircularBuffer<Bread> breadBuffer;
     static CircularBuffer<Egg> eggBuffer;
+    static SynchronizedFileWriter fileWriter;
 
     public static void main(String[] args) {
         numSandwiches = Integer.parseInt(args[0]);
@@ -31,84 +32,93 @@ public class SandwichManager {
         eggRate = Integer.parseInt(args[7]);
         packingRate = Integer.parseInt(args[8]);
 
-        // Create the log header
-        String systemLineSeparator = System.lineSeparator();
-        String logHead = String.format(
-                "sandwiches: %d%sbread capacity: %d%segg capacity: %d%sbread makers: %d%segg makers: %d%ssandwich packers: %d%sbread rate: %d%segg rate: %d%spacking rate: %d%s%s",
-                numSandwiches, systemLineSeparator, breadCapacity, systemLineSeparator, eggCapacity,
-                systemLineSeparator, numBreadMakers, systemLineSeparator, numEggMakers, systemLineSeparator,
-                numSandwichPackers, systemLineSeparator, breadRate, systemLineSeparator, eggRate, systemLineSeparator,
-                packingRate, systemLineSeparator, systemLineSeparator);
-        writeToLog(logHead, false);
+        try {
+            // Clear the file first
+            new FileWriter("log.txt", false).close();
+            fileWriter = new SynchronizedFileWriter("log.txt");
 
-        // We first want to set the total number of required ingredients
-        requiredBread = numSandwiches * 2;
-        requiredEgg = numSandwiches;
-        requiredSandwich = numSandwiches;
+            // Create the log header
+            String systemLineSeparator = System.lineSeparator();
+            String logHead = String.format(
+                    "sandwiches: %d%sbread capacity: %d%segg capacity: %d%sbread makers: %d%segg makers: %d%ssandwich packers: %d%sbread rate: %d%segg rate: %d%spacking rate: %d%s%s",
+                    numSandwiches, systemLineSeparator, breadCapacity, systemLineSeparator, eggCapacity,
+                    systemLineSeparator, numBreadMakers, systemLineSeparator, numEggMakers, systemLineSeparator,
+                    numSandwichPackers, systemLineSeparator, breadRate, systemLineSeparator, eggRate,
+                    systemLineSeparator,
+                    packingRate, systemLineSeparator, systemLineSeparator);
+            fileWriter.write(logHead);
 
-        // Initialise our ingredient buffers
-        breadBuffer = new CircularBuffer<Bread>(breadCapacity);
-        eggBuffer = new CircularBuffer<Egg>(eggCapacity);
+            // We first want to set the total number of required ingredients
+            requiredBread = numSandwiches * 2;
+            requiredEgg = numSandwiches;
+            requiredSandwich = numSandwiches;
 
-        // Initialise our machine threads
-        BreadMachine[] breadMachines = new BreadMachine[numBreadMakers];
-        EggMachine[] eggMachines = new EggMachine[numEggMakers];
-        SandwichMachine[] sandwichMachines = new SandwichMachine[numSandwichPackers];
+            // Initialise our ingredient buffers
+            breadBuffer = new CircularBuffer<Bread>(breadCapacity);
+            eggBuffer = new CircularBuffer<Egg>(eggCapacity);
 
-        // Start our threads
-        for (int i = 0; i < numBreadMakers; i++) {
-            breadMachines[i] = new BreadMachine(i, breadRate);
-            breadMachines[i].start();
-        }
-        for (int i = 0; i < numEggMakers; i++) {
-            eggMachines[i] = new EggMachine(i, eggRate);
-            eggMachines[i].start();
-        }
-        for (int i = 0; i < numSandwichPackers; i++) {
-            sandwichMachines[i] = new SandwichMachine(i, packingRate);
-            sandwichMachines[i].start();
-        }
+            // Initialise our machine threads
+            BreadMachine[] breadMachines = new BreadMachine[numBreadMakers];
+            EggMachine[] eggMachines = new EggMachine[numEggMakers];
+            SandwichMachine[] sandwichMachines = new SandwichMachine[numSandwichPackers];
 
-        // Wait for threads to finish
-        for (Thread breadThread : breadMachines) {
-            try {
-                breadThread.join();
-            } catch (Exception e) {
-                e.printStackTrace();
+            // Start our threads
+            for (int i = 0; i < numBreadMakers; i++) {
+                breadMachines[i] = new BreadMachine(i, breadRate);
+                breadMachines[i].start();
             }
-        }
-        for (Thread eggThread : eggMachines) {
-            try {
-                eggThread.join();
-            } catch (Exception e) {
-                e.printStackTrace();
+            for (int i = 0; i < numEggMakers; i++) {
+                eggMachines[i] = new EggMachine(i, eggRate);
+                eggMachines[i].start();
             }
-        }
-        for (Thread sandwichThread : sandwichMachines) {
-            try {
-                sandwichThread.join();
-            } catch (Exception e) {
-                e.printStackTrace();
+            for (int i = 0; i < numSandwichPackers; i++) {
+                sandwichMachines[i] = new SandwichMachine(i, packingRate);
+                sandwichMachines[i].start();
             }
-        }
 
-        // Create the log summary
-        StringBuilder summary = new StringBuilder();
-        summary.append(systemLineSeparator + "summary:" + systemLineSeparator);
+            // Wait for threads to finish
+            for (Thread breadThread : breadMachines) {
+                try {
+                    breadThread.join();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+            for (Thread eggThread : eggMachines) {
+                try {
+                    eggThread.join();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+            for (Thread sandwichThread : sandwichMachines) {
+                try {
+                    sandwichThread.join();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
 
-        for (BreadMachine breadMachine : breadMachines) {
-            summary.append(breadMachine.getAmountMade() + systemLineSeparator);
-        }
-        for (EggMachine eggMachine : eggMachines) {
-            summary.append(eggMachine.getAmountMade() + systemLineSeparator);
-        }
-        for (SandwichMachine sandwichMachine : sandwichMachines) {
-            summary.append(sandwichMachine.getAmountMade() + systemLineSeparator);
-        }
+            // Create the log summary
+            StringBuilder summary = new StringBuilder();
+            summary.append(systemLineSeparator + "summary:" + systemLineSeparator);
 
-        System.out.println(summary.toString());
-        writeToLog(summary.toString(), true);
+            for (BreadMachine breadMachine : breadMachines) {
+                summary.append(breadMachine.getAmountMade() + systemLineSeparator);
+            }
+            for (EggMachine eggMachine : eggMachines) {
+                summary.append(eggMachine.getAmountMade() + systemLineSeparator);
+            }
+            for (SandwichMachine sandwichMachine : sandwichMachines) {
+                summary.append(sandwichMachine.getAmountMade() + systemLineSeparator);
+            }
 
+            System.out.println(summary.toString());
+            fileWriter.write(summary.toString());
+            fileWriter.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     static synchronized boolean canMakeBread() {
@@ -135,17 +145,6 @@ public class SandwichManager {
         return false;
     }
 
-    // Synchronized method to write to the log
-    static synchronized void writeToLog(String s, boolean append) {
-        try {
-            FileWriter fw = new FileWriter(new File("./log.txt"), append);
-            fw.write(s);
-            fw.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
     static void gowork(int n) {
         for (int i = 0; i < n; i++) {
             long m = 300000000;
@@ -153,6 +152,23 @@ public class SandwichManager {
                 m--;
             }
         }
+    }
+}
+
+class SynchronizedFileWriter {
+    private final BufferedWriter writer;
+
+    public SynchronizedFileWriter(String filename) throws IOException {
+        this.writer = new BufferedWriter(new FileWriter(filename, true));
+    }
+
+    public synchronized void write(String text) throws IOException {
+        writer.write(text);
+        writer.flush();
+    }
+
+    public void close() throws IOException {
+        writer.close();
     }
 }
 
@@ -252,8 +268,8 @@ class BreadMachine extends GenericMachine {
                 setNumMade(numMade);
                 String log = String.format("%s puts bread %d%s", getMachineId(), numMade,
                         System.lineSeparator());
-                SandwichManager.writeToLog(log, true);
-            } catch (InterruptedException e) {
+                SandwichManager.fileWriter.write(log);
+            } catch (InterruptedException | IOException e) {
                 e.printStackTrace();
             }
         }
@@ -284,8 +300,8 @@ class EggMachine extends GenericMachine {
                 setNumMade(numMade);
                 String log = String.format("%s puts egg %d%s", getMachineId(), numMade,
                         System.lineSeparator());
-                SandwichManager.writeToLog(log, true);
-            } catch (InterruptedException e) {
+                SandwichManager.fileWriter.write(log);
+            } catch (InterruptedException | IOException e) {
                 e.printStackTrace();
             }
         }
@@ -323,9 +339,9 @@ class SandwichMachine extends GenericMachine {
                         bottom.getId(),
                         bottom.getMachineId(),
                         System.lineSeparator());
-                SandwichManager.writeToLog(log, true);
+                SandwichManager.fileWriter.write(log);
                 setNumMade(numMade);
-            } catch (InterruptedException e) {
+            } catch (InterruptedException | IOException e) {
                 e.printStackTrace();
             }
         }
