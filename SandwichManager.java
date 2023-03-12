@@ -77,23 +77,23 @@ public class SandwichManager {
             }
 
             // Wait for threads to finish
-            for (Thread breadThread : breadMachines) {
+            for (BreadMachine breadMachine : breadMachines) {
                 try {
-                    breadThread.join();
+                    breadMachine.join();
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
             }
-            for (Thread eggThread : eggMachines) {
+            for (EggMachine eggMachine : eggMachines) {
                 try {
-                    eggThread.join();
+                    eggMachine.join();
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
             }
-            for (Thread sandwichThread : sandwichMachines) {
+            for (SandwichMachine sandwichMachine : sandwichMachines) {
                 try {
-                    sandwichThread.join();
+                    sandwichMachine.join();
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
